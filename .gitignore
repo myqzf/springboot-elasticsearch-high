@@ -7,3 +7,4 @@ target
 ## Files                    ##
 ##############################
 .project
+src/main/resources/application-dev.properties
