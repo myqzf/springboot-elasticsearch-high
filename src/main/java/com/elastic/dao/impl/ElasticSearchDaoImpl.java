@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -43,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 import com.alibaba.fastjson.JSONObject;
 import com.elastic.dao.ElasticSearchDao;
@@ -60,20 +62,17 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	 * @return
 	 */
 	@Override
-	public boolean createIndexSync(String index) {
-		if (!isIndexExist(index)) {
-			LOGGER.info("Index is not exits!");
-		}
-		CreateIndexRequest request = new CreateIndexRequest(index);
+	public boolean createIndexSync(String indexName) {
+		Assert.notNull(indexName, "No index defined for Query");
+		boolean acknowledged = false;
+		CreateIndexRequest request = new CreateIndexRequest(indexName);
 		try {
 			CreateIndexResponse createIndexResponse = client.indices().create(request);
-			boolean acknowledged = createIndexResponse.isAcknowledged(); // 是否所有节点都已确认请求
-			LOGGER.info("是否所有节点都已确认请求?" + acknowledged);
+			acknowledged = createIndexResponse.isAcknowledged(); // 是否所有节点都已确认请求
 		} catch (IOException e) {
-			LOGGER.error("创建索引失败！");
-			e.printStackTrace();
+			throw new ElasticsearchException("Failed to create index for " + indexName, e);
 		}
-		return true;
+		return acknowledged;
 	}
 	
 	/**
@@ -123,8 +122,7 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 		try {
 			exists = client.indices().exists(request);
 		} catch (IOException e) {
-			LOGGER.error("查询文档是否存在失败！");
-			e.printStackTrace();
+			throw new ElasticsearchException("Failed to judge index is exists " + index, e);
 		}
 		return exists;
 	}
@@ -136,20 +134,20 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	 * @return
 	 */
 	@Override
-	public boolean deleteIndex(String index) {
-		Boolean isSuccess = true;
-		if (!isIndexExist(index)) {
-			return isSuccess;
+	public boolean deleteIndex(String indexName) {
+		Assert.notNull(indexName, "No index defined for delete operation");
+		DeleteIndexRequest request = new DeleteIndexRequest(indexName);
+
+		Boolean isSuccess = false;
+		if (isIndexExist(indexName)) {
+			try {
+				DeleteIndexResponse deleteIndexResponse = client.indices().delete(request);
+				isSuccess = deleteIndexResponse.isAcknowledged();
+			} catch (IOException e) {
+				throw new ElasticsearchException("Failed to delete index for " + indexName, e);
+			}
 		}
-		DeleteIndexRequest request = new DeleteIndexRequest(index);
-		try {
-			DeleteIndexResponse deleteIndexResponse	= client.indices().delete(request);
-			isSuccess = deleteIndexResponse.isAcknowledged();
-			LOGGER.info("删除索引 " + index + "  成功!");
-		} catch (IOException e) {
-			LOGGER.info("删除索引失败: " + index);
-			e.printStackTrace();
-		}
+
 		return isSuccess;
 	}
 	
