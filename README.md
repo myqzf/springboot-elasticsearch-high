@@ -7,3 +7,8 @@ ElasticSearch计划在7.0中将会弃用TransportClient，并在8.0中完全删�
 项目环境：
 springboot 2.0.3
 elasticsearch-rest-high-level-client 6.3.0
+
+
+
+
+-- 修改与2018.06.23
