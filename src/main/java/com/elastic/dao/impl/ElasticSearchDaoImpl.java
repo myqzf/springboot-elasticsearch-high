@@ -15,6 +15,8 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -589,6 +591,27 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 
       return null;
 
+	}
+
+	/**
+	 * 映射索引
+	 */
+	@Override
+	public boolean putMapping(JSONObject jsonObject, String index, String type) {
+		PutMappingRequest request = new PutMappingRequest(index);
+		request.type(type);
+		
+		request.source(jsonObject);
+		boolean exists = false;
+		try {
+			PutMappingResponse putMappingResponse = client.indices().putMapping(request);
+			exists = putMappingResponse.isAcknowledged();
+		} catch (IOException e) {
+			LOGGER.error("索引映射失败！");
+			e.printStackTrace();
+		}
+		
+		return exists;
 	}
 
 

@@ -16,6 +16,8 @@ public interface ElasticSearchDao {
 	boolean isIndexExist(String index);
 
 	boolean deleteIndex(String index);
+	
+	boolean putMapping(JSONObject jsonObject, String index,String type);
 
 	boolean isDocumentExist(String index, String type, String id);
 
