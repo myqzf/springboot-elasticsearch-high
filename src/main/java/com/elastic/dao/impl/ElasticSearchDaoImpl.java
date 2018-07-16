@@ -2,6 +2,7 @@ package com.elastic.dao.impl;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,15 +26,18 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.text.Text;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -51,12 +55,15 @@ import org.springframework.util.Assert;
 import com.alibaba.fastjson.JSONObject;
 import com.elastic.dao.ElasticSearchDao;
 import com.elastic.utils.EsPagnationData;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Repository
 public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ElasticSearchDaoImpl.class);
 	@Autowired
 	private RestHighLevelClient client;
+	@Autowired
+	private ObjectMapper objectMapper;
 	/**
 	 * 同步创建索引
 	 *
@@ -615,5 +622,53 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 	}
 
 
+	/**
+	 * Scroll滚动搜索
+	 */
+	@Override
+	public <E> Map<String, Object> ScrollSearch(String index, Class<E> ec, String referScoreId, String searchContent,String includeFields, String excludeFields) {
+		Map<String, Object> map = new HashMap<>();
+		List<Object> list = new ArrayList<>();
+		final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
+		SearchResponse searchResponse;
+		SearchHit[] searchHits;
+		String scrollId = "";
+		try {
+			if(StringUtils.isBlank(referScoreId)) {
+				SearchRequest searchRequest = new SearchRequest(index);
+				searchRequest.scroll(scroll);
+				SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+				searchSourceBuilder.size(3); 
+				searchSourceBuilder.query(QueryBuilders.matchQuery("title", searchContent));
+				
+				FetchSourceContext context = new FetchSourceContext(true,  Strings.EMPTY_ARRAY,  excludeFields.split(","));
+				searchSourceBuilder.fetchSource(context);
+				
+				searchRequest.source(searchSourceBuilder);
+				searchResponse = client.search(searchRequest); 
+				scrollId = searchResponse.getScrollId();
+				searchHits = searchResponse.getHits().getHits();
+				for (SearchHit hit : searchHits) {
+					list.add(objectMapper.convertValue(hit.getSourceAsMap(), ec));
+				}
+				System.out.println("scrollId"+scrollId);
+			}else {
+				SearchScrollRequest scrollRequest = new SearchScrollRequest(referScoreId); 
+				scrollRequest.scroll(scroll);
+				searchResponse = client.searchScroll(scrollRequest);
+				scrollId = searchResponse.getScrollId();
+				searchHits = searchResponse.getHits().getHits();
+				for (SearchHit hit : searchHits) {
+					list.add(objectMapper.convertValue(hit.getSourceAsMap(), ec));
+				}
+				System.out.println("scrollId "+ scrollId);
+			}
+		}catch (IOException e) {
+			e.printStackTrace();
+		}
+		map.put("list", list);
+		map.put("referScoreId", scrollId);
+		return map;
+	}
 	
 }

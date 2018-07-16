@@ -39,4 +39,6 @@ public interface ElasticSearchDao {
 
 	EsPagnationData searchDataPage(String index, String type, int currentPage, int pageSize, long startTime, long endTime, String fields, String sortField, boolean matchPhrase, String highlightField, String matchStr) throws IOException;
 
+	<E> Map<String, Object> ScrollSearch(String index, Class<E> ec, String referScoreId, String searchContent, String includeFields, String excludeFields);
+
 }
