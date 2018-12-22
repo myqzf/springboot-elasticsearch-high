@@ -8,3 +8,6 @@ target
 ##############################
 .project
 src/main/resources/application-dev.properties
+.project
+target/classes/application.properties
+target/classes/META-INF/MANIFEST.MF
